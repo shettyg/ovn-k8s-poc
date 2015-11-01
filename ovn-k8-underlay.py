@@ -514,10 +514,11 @@ def plugin_status(args):
     container_id = args.k8_args[2]
 
     veth_outside = container_id[0:15]
-    ip_address = ovs_vsctl("--if-exists get %s external_ids:ip_address"
+    ip_address = ovs_vsctl("--if-exists get interface %s "
+                           "external_ids:ip_address"
                            % (veth_outside)).strip('"')
     if ip_address:
-        style = {"ip_address": ip_address}
+        style = {"ip": ip_address}
         print json.dumps(style)
 
 
