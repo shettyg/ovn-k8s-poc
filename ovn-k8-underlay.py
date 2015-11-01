@@ -21,7 +21,7 @@ from docker import Client
 
 AUTH_STRATEGY = ""
 AUTH_URL = ""
-OVN_BRIDGE = ""
+OVN_BRIDGE = "br-int"
 PASSWORD = ""
 TENANT_ID = ""
 USERNAME = ""
@@ -47,14 +47,6 @@ def call_prog(prog, args_list):
 
 def ovs_vsctl(args):
     return call_prog("ovs-vsctl", shlex.split(args))
-
-
-def ovn_setup():
-    global OVN_BRIDGE
-    OVN_BRIDGE = ovs_vsctl("--if-exists get open_vswitch . "
-                           "external-ids:ovn-bridge").strip('"')
-    if not OVN_BRIDGE:
-        sys.exit("OVN_BRIDGE not specified")
 
 
 def neutron_setup():
@@ -367,8 +359,6 @@ def plugin_setup(args):
     ns = args.k8_args[0]
     pod_name = args.k8_args[1]
     container_id = args.k8_args[2]
-
-    ovn_setup()
 
     client = Client(base_url='unix://var/run/docker.sock')
     try:

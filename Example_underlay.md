@@ -15,31 +15,26 @@ Install docker python package
 pip install docker-py
 ```
 
-Prep the host with Open vSwitch
-==============================
+Prep the host with Open vSwitch and Linux bridge
+===============================================
 
 You will need to install openvswitch in the VMs. On Ubuntu, you can do it with:
 ```
 apt-get install openvswitch-switch openvswitch-common -y
 ```
 
-Create the openvswitch bridge via which you plan to send your container
+Create a linux bridge via which you plan to send your container
 traffic. If your mgmt interface is 'eth0' and if your interface connected to
 the OVN logical switch is 'eth1', you will need to create a bridge 'breth1'
 and add 'eth1' as a port of that bridge. i.e.
 
 ```
-ovs-vsctl add-br breth1
-ovs-vsctl add-port breth1 eth1
+brctl addbr breth1
+brctl addif breth1 eth1
 ```
 
 You will also need to remove the IP address from eth1 and move it to breth1
-
-Set ovn bridge in the database
-
-```
-ovs-vsctl set open_vswitch . external_ids:ovn-bridge="breth1"
-```
+along with any route information.
 
 Set neutron source file.
 
@@ -54,6 +49,21 @@ OS_TENANT_NAME="demo"
 OS_USERNAME="demo"
 OS_PASSWORD="password"
 OS_VIF_ID=2233c32a-4092-4d8b-b44d-1c54f666c507
+```
+
+Create the Open vSwitch integration bridge "br-int" and attach it to the
+Linux bridge via a veth interface.
+
+```
+ovs-vsctl add-br br-int
+
+ip link add br-int-veth type veth peer name breth1-veth
+ifconfig br-int-veth up
+ifconfig breth1-veth up
+
+ovs-vsctl add-port br-int br-int-veth
+
+brctl addif breth1 breth1-veth
 ```
 
 Prep the host with Kubernetes components
@@ -92,10 +102,12 @@ mkdir -p /usr/libexec/kubernetes/kubelet-plugins/net/exec/ovn
 cp ovn-k8-underlay.py /usr/libexec/kubernetes/kubelet-plugins/net/exec/ovn/ovn
 ```
 
-Now start the kubelet
+Now start the kubelet and kube-proxy
 
 ```
 nohup ./kubelet --api-servers=http://0.0.0.0:8080 --v=2 --address=0.0.0.0 --enable-server --hostname-override=$(hostname -i)  --network-plugin=ovn 2>&1 > /dev/null &
+
+nohup ./kube-proxy --master=0.0.0.0:8080 --v=2 2>&1 > /dev/null &
 ```
 
 On your second VM, you will need to copy the OVN plugin too and then start
@@ -104,6 +116,8 @@ only the kubelet. You can do this by:
 ```
 MASTER_IP=$IP_OF_MASTER
 nohup ./kubelet --api-servers=http://${MASTER_IP}:8080 --v=2 --address=0.0.0.0 --enable-server --hostname-override=$(hostname -i) --network-plugin=ovn 2>&1 > /dev/null &
+
+nohup ./kube-proxy --master=${MASTER_IP}:8080 --v=2 2>&1 > /dev/null &
 ```
 
 Cluster Setup
@@ -135,8 +149,38 @@ logical switches together to a logical router.
 The above will provide the required connectivity for all the pods to be
 able to speak to all the other pods in the cluster.
 
+Load Balancing
+==============
+
+K8 kube-proxy provides iptables based stateful and distributed load-balancing.
+To integrate this with OVN, a few commands need to be run on each host.
+
+On each host, for the logical switch of that host, you will need get the mac
+address of the default gateway. For e.g., with OpenStack, if the subnet is
+192.168.1.0/29, the ip address of default gateway is usually 192.168.1.1.
+Let us say the mac address of the default gateway in the logical space is
+is $GW_MAC and its ip address is $GW_IP
+
+Also you will need to know the larger subnet of all the pods in your k8
+cluster. For e.g., if host1 subnet is 192.168.1.0/24 and host2 subnet is
+192.168.2.0/24 and so on, your subnet for the entire cluster can be
+192.168.0.0/16. Let us say that larger subnet is $CLUSTER_SUBNET
+
+On each host, run the following commands:
+
+```
+ip neigh add $GW_IP lladdr $GW_MAC dev breth1 nud perm
+route add -net $GW_IP  netmask 255.255.255.255 dev breth1
+route add -net $CLUSTER_SUBNET_IP netmask $CLUSTER_SUBNET_NETMASK gw $GW_IP dev breth1
+```
+
 Start the pods
-=============
+==============
 
 You can now use kubectl to start some pods. The pods should be able to talk
 to each other via IP adderss.
+
+Start the services
+==================
+
+You should be able to access the service ip addresses from inside the pods.
