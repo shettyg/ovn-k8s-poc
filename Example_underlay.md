@@ -65,6 +65,7 @@ ifconfig breth1-veth up
 ovs-vsctl add-port br-int br-int-veth
 
 brctl addif breth1 breth1-veth
+brctl hairpin breth1 breth1-veth off
 ```
 
 Prep the host with Kubernetes components
