@@ -284,6 +284,12 @@ def plugin_teardown(args):
         error = "Failed to delete veth_outside (%s)" % (str(e))
         sys.stderr.write(error)
 
+    annotations = get_annotations(ns, pod_name)
+    if annotations:
+        security_group = annotations.get("security-group", "")
+        if security_group:
+            disassociate_security_group(container_id)
+
     try:
         ovn_nbctl("lport-del %s" % container_id)
     except Exception as e:
@@ -295,12 +301,6 @@ def plugin_teardown(args):
     except Exception as e:
         error = "failed to delete OVS port (%s)" % (veth_outside)
         sys.stderr.write(error)
-
-    annotations = get_annotations(ns, pod_name)
-    if annotations:
-        security_group = annotations.get("security-group", "")
-        if security_group:
-            disassociate_security_group(lport)
 
 
 def main():
