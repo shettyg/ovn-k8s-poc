@@ -534,17 +534,18 @@ def plugin_teardown(args):
     container_id = args.k8_args[2]
 
     veth_outside = container_id[0:15]
+
+    lport = ovs_vsctl("--if-exists get interface %s external_ids:lport_id"
+                      % (veth_outside)).strip('"')
+    if not lport:
+        return
+
     command = "ip link delete %s" % (veth_outside)
     try:
         call_popen(shlex.split(command))
     except Exception as e:
         error = "Failed to delete veth_outside (%s)" % (str(e))
         sys.stderr.write(error)
-
-    lport = ovs_vsctl("--if-exists get interface %s external_ids:lport_id"
-                      % (veth_outside)).strip('"')
-    if not lport:
-        return
 
     try:
         ovs_vsctl("del-port %s" % (veth_outside))
