@@ -65,7 +65,18 @@ ifconfig breth1-veth up
 ovs-vsctl add-port br-int br-int-veth
 
 brctl addif breth1 breth1-veth
+```
+
+Due to a terrible hack in k8 wherein they enable hairpin mode
+in every linux bridge on the host, we need to run a script that
+disables it. This hack can be removed once k8 moves to a plugin.
+
+
+```
+while true; do
 brctl hairpin breth1 breth1-veth off
+brctl hairpin breth1 eth1 off
+done
 ```
 
 Prep the host with Kubernetes components
@@ -113,7 +124,7 @@ nohup ./kube-proxy --master=0.0.0.0:8080 --v=2 2>&1 > /dev/null &
 ```
 
 On your second VM, you will need to copy the OVN plugin too and then start
-only the kubelet. You can do this by:
+the kubelet and kube-proxy. You can do this by:
 
 ```
 MASTER_IP=$IP_OF_MASTER

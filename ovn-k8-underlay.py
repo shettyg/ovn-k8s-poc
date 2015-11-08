@@ -489,6 +489,14 @@ def plugin_setup(args):
         error = "failed to create a OVS port. (%s)" % (str(e))
         sys.exit(error)
 
+    command = "ovs-ofctl add-flow %s 'priority=65000,ipv6 actions=drop'" \
+              % (OVN_BRIDGE)
+    try:
+        call_popen(shlex.split(command))
+    except Exception as e:
+        error = "Failed to add ipv6 disable (%s)" % (str(e))
+        sys.stderr.write(error)
+
     cache_mark_port_usage(lport, "yes")
 
     annotations = get_annotations(ns, pod_name)
