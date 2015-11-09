@@ -146,12 +146,14 @@ by:
 
 ```
 ./ovn-k8-underlay.py lswitch-setup host1 192.168.1.0/29 router_id
+route add -net 192.168.1.0 netmask 255.255.255.248 dev breth1
 ```
 
 On host2, do the same, but with a different subnet
 
 ```
 ./ovn-k8-underlay.py lswitch-setup host2 192.168.2.0/29 router_id
+route add -net 192.168.2.0 netmask 255.255.255.248 dev breth1
 ```
 
 Eventually the above script will automatically attach the created logical

@@ -497,6 +497,14 @@ def plugin_setup(args):
         error = "Failed to add ipv6 disable (%s)" % (str(e))
         sys.stderr.write(error)
 
+    # FIXME Add the correct linux bridge.
+    command = "ip neigh add %s lladdr %s dev breth1 nud perm" % (ip_address, mac)
+    try:
+        call_popen(shlex.split(command))
+    except Exception as e:
+        error = "Failed to add ip neigh rules (%s)" % (str(e))
+        sys.stderr.write(error)
+
     cache_mark_port_usage(lport, "yes")
 
     annotations = get_annotations(ns, pod_name)
