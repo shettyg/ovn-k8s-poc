@@ -182,6 +182,7 @@ cluster. For e.g., if host1 subnet is 192.168.1.0/24 and host2 subnet is
 On each host, run the following commands:
 
 ```
+sysctl -w  net.bridge.bridge-nf-filter-vlan-tagged=1
 ip neigh add $GW_IP lladdr $GW_MAC dev breth1 nud perm
 route add -net $GW_IP  netmask 255.255.255.255 dev breth1
 route add -net $CLUSTER_SUBNET_IP netmask $CLUSTER_SUBNET_NETMASK gw $GW_IP dev breth1
